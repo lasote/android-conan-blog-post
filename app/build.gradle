@@ -1,0 +1,68 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 26
+    defaultConfig {
+        applicationId "com.jfrog.myboostapp"
+        minSdkVersion 21
+        targetSdkVersion 26
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        externalNativeBuild {
+            cmake {
+                cppFlags ""
+                arguments "-DANDROID_STL=c++_shared"
+            }
+        }
+        ndk {
+            abiFilters 'armeabi-v7a', 'x86'
+            stl 'c++_shared'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path "CMakeLists.txt"
+        }
+    }
+}
+
+task conanInstall {
+    android.defaultConfig.ndk.abiFilters.each {
+        def arch = it;
+        def buildDir = new File("app/conan_build_" + arch)
+        buildDir.mkdirs()
+
+        // if you have problems running the command try to specify the absolute
+        // path to conan (Known problem in MacOSX) /usr/local/bin
+        def conan_path = "" //"""/usr/local/bin/"
+        def cmd = conan_path + "conan install ../conanfile.txt --profile android_21_" + arch + "_clang"
+        print(">> ${cmd} \n")
+
+        def sout = new StringBuilder(), serr = new StringBuilder()
+        def proc = cmd.execute(null, buildDir)
+
+        proc.consumeProcessOutput(sout, serr)
+        proc.waitFor()
+        println "$sout $serr"
+        if (proc.exitValue() != 0) {
+            throw new Exception("out> $sout err> $serr" + "\nCommand: ${cmd}")
+        }
+    }
+}
+
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'com.android.support:appcompat-v7:26.1.0'
+    implementation 'com.android.support.constraint:constraint-layout:1.0.2'
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'com.android.support.test:runner:1.0.1'
+    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
+}
